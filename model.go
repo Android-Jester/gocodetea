@@ -67,6 +67,7 @@ func (s *Stack) Top() (func(), error) {
 	return last, nil
 }
 
+// bubbletea model for UI
 type model struct {
 	Tabs          []string
 	TabContent    []string

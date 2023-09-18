@@ -36,14 +36,10 @@ func main() {
 		// f, fs := getFuncAST(methodName, "learning/learning.go", learning.CodeSrc)
 		// body := getFuncBodyStr(f, fs)
 		// val := reflect.ValueOf(learn).MethodByName(methodName)
+		// funcToStdOut(val)
 		// fmt.Println(val)
 		learning_tabs = append(learning_tabs, methodName)
-		// s, _ := funcToStdOut(val)
-		// fmt.Println(s)
-		// tabContent = append(tabContent, s)
-		if i == 0 {
-			vp.SetContent("")
-		}
+		//initial tabContent is set in Update method in model
 	}
 
 	// tabs := []string{"Lip Gloss", "Blush", "Eye Shadow", "Mascara", "Foundation"}
