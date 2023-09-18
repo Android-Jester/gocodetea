@@ -1,4 +1,4 @@
-module example/tab-learning
+module github.com/lazarusking/gocodetea
 
 go 1.21.0
 
