@@ -7,17 +7,12 @@ import (
 	"reflect"
 
 	learning "example.com/learning"
-	"github.com/charmbracelet/bubbles/viewport"
+	"github.com/lazarusking/gocodetea/model"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
-	var width = 78
-	var height = 20
-	// viewport size
-	vp := viewport.New(width, height)
-
 	// declare zero-valued struct
 	var learn learning.Go_Struct
 	// var ln = &learning.Go_Struct{} //using pointers
@@ -41,13 +36,13 @@ func main() {
 		learning_tabs = append(learning_tabs, methodName)
 		//initial tabContent is set in Update method in model
 	}
-
+	// fmt.Println(learning_tabs)
 	// tabs := []string{"Lip Gloss", "Blush", "Eye Shadow", "Mascara", "Foundation"}
 	// tabContent := []string{funcToStdOut(learn.Closures), "Blush Tab", funcToStdOut(learn.Functions), "Mascara Tab", "Foundation Tab"}
 	// tabContent := []string{"Lip Gloss Tab", "Blush Tab", "Eye Shadow Tab", "Mascara Tab", "Foundation Tab"}
 
 	//populate model with initial fields
-	m := model{Tabs: learning_tabs, TabContent: make([]string, len(learning_tabs)), viewport: vp, deferredFuncs: NewStack()}
+	m := model.Model{Tabs: learning_tabs, TabContent: make([]string, len(learning_tabs)), DeferredFuncs: model.NewStack()}
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
