@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	learning "example.com/learning"
+	// learning "example.com/learning"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -69,17 +69,17 @@ func (s *Stack) Top() (func(), error) {
 
 // bubbletea Model for UI
 type Model struct {
-	Tabs          []string
-	TabContent    []string
-	activeTab     int
-	codeView      bool
-	DeferredFuncs *Stack //func returned from functions that run when you change tabs
-	viewport      viewport.Model
+	Tabs            []string
+	TabContent      []string
+	activeTab       int
+	codeView        bool
+	DeferredFuncs   *Stack //func returned from functions that run when you change tabs
+	viewport        viewport.Model
+	SourceCode      string
+	MethodContainer interface{} //contains a struct with method receivers that the model will execute
 }
 
-// return a string containing the tabs that will serve as header
-func (m Model) headerView() string {
-	doc := strings.Builder{}
+func (m Model) renderTabs() string {
 	var renderedTabs []string
 	for i, t := range m.Tabs {
 		var style lipgloss.Style
@@ -89,23 +89,45 @@ func (m Model) headerView() string {
 		} else {
 			style = inactiveTabStyle.Copy()
 		}
+		// } else if isLast && isActive {
+		// 	// border.BottomRight = "│"
+		// }
+		// else if isLast && !isActive {
+		// 	border.BottomRight = "┤"
+		// }
 		border, _, _, _, _ := style.GetBorder()
 		style = style.Border(border)
 		renderedTabs = append(renderedTabs, style.Render(t))
 	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
+}
 
-	row := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
+// Return a string containing the tabs that will serve as header
+func (m Model) headerView() string {
+	doc := strings.Builder{}
+	row := m.renderTabs()
 	doc.WriteString(row)
 	doc.WriteString("\n")
 	return docStyle.Render(doc.String())
 }
 
+func (m Model) View() string {
+	doc := strings.Builder{}
+	row := m.renderTabs()
+	doc.WriteString(row)
+	doc.WriteString("\n")
+	doc.WriteString(m.viewport.View())
+	// doc.WriteString(m.TabContent[m.activeTab])
+	// doc.WriteString(windowStyle.Width((lipgloss.Width(row) - windowStyle.GetHorizontalFrameSize())).Render(m.TabContent[m.activeTab]))
+	return docStyle.Render(doc.String())
+}
 func (m Model) Init() tea.Cmd {
 	return nil
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	val := reflect.ValueOf(&learning.Go_Struct{})
+	// equivalent to value of say learning.GoStruct{}
+	val := reflect.ValueOf(m.MethodContainer)
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch keypress := msg.String(); keypress {
@@ -170,43 +192,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.viewport.SetContent(m.TabContent[m.activeTab])
 	return m, nil
 }
-func (m Model) View() string {
-	doc := strings.Builder{}
-
-	var renderedTabs []string
-
-	for i, t := range m.Tabs {
-		var style lipgloss.Style
-		_, _, isActive := i == 0, i == len(m.Tabs)-1, i == m.activeTab
-		if isActive {
-			style = activeTabStyle.Copy()
-		} else {
-			style = inactiveTabStyle.Copy()
-		}
-		border, _, _, _, _ := style.GetBorder()
-		// if isFirst && isActive {
-		// 	border.BottomLeft = "│"
-		// } else
-		// if isFirst && !isActive {
-		// 	// border.BottomLeft = "├"
-		// } else if isLast && isActive {
-		// 	// border.BottomRight = "│"
-		// }
-		// else if isLast && !isActive {
-		// 	border.BottomRight = "┤"
-		// }
-		style = style.Border(border)
-		renderedTabs = append(renderedTabs, style.Render(t))
-	}
-
-	row := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
-	doc.WriteString(row)
-	doc.WriteString("\n")
-	doc.WriteString(m.viewport.View())
-	// doc.WriteString(m.TabContent[m.activeTab])
-	// doc.WriteString(windowStyle.Width((lipgloss.Width(row) - windowStyle.GetHorizontalFrameSize())).Render(m.TabContent[m.activeTab]))
-	return docStyle.Render(doc.String())
-}
 
 // Sets the model's TabContent property based on whether the codeView
 // is enabled or not. If codeView is true, it sets the TabContent to the formatted body of
@@ -216,7 +201,7 @@ func (m *Model) setTabContentToFnOutput(val reflect.Value) {
 	val = val.MethodByName(tab)
 
 	if m.codeView {
-		f, fs := getFuncAST(tab, "", learning.CodeSrc)
+		f, fs := getFuncAST(tab, "", m.SourceCode)
 		body := getFuncBodyStr(f, fs)
 		m.TabContent[m.activeTab] = body
 	} else {
