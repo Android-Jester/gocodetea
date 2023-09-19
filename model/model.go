@@ -1,4 +1,4 @@
-package main
+package model
 
 import (
 	"bytes"
@@ -67,28 +67,51 @@ func (s *Stack) Top() (func(), error) {
 	return last, nil
 }
 
-// bubbletea model for UI
-type model struct {
+// bubbletea Model for UI
+type Model struct {
 	Tabs          []string
 	TabContent    []string
 	activeTab     int
 	codeView      bool
-	deferredFuncs *Stack //func returned from functions that run when you change tabs
+	DeferredFuncs *Stack //func returned from functions that run when you change tabs
 	viewport      viewport.Model
 }
 
-func (m model) Init() tea.Cmd {
+// return a string containing the tabs that will serve as header
+func (m Model) headerView() string {
+	doc := strings.Builder{}
+	var renderedTabs []string
+	for i, t := range m.Tabs {
+		var style lipgloss.Style
+		_, _, isActive := i == 0, i == len(m.Tabs)-1, i == m.activeTab
+		if isActive {
+			style = activeTabStyle.Copy()
+		} else {
+			style = inactiveTabStyle.Copy()
+		}
+		border, _, _, _, _ := style.GetBorder()
+		style = style.Border(border)
+		renderedTabs = append(renderedTabs, style.Render(t))
+	}
+
+	row := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
+	doc.WriteString(row)
+	doc.WriteString("\n")
+	return docStyle.Render(doc.String())
+}
+
+func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	val := reflect.ValueOf(&learning.Go_Struct{})
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch keypress := msg.String(); keypress {
 		case "ctrl+c", "q":
 			for { //pop every item in the stack and run items until stack is empty
-				f, err := m.deferredFuncs.Pop()
+				f, err := m.DeferredFuncs.Pop()
 				// fmt.Println(&f, err)
 				if err != nil {
 					// fmt.Println(&f, err)
@@ -109,12 +132,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			//tabContent didn't return a cleanup function,
 			//codeView shouldnt execute cleanup functions as well
 			// fmt.Println(m.deferredFuncs.s)
-			if fn, _ := m.deferredFuncs.Top(); fn != nil && !m.codeView {
+			if fn, _ := m.DeferredFuncs.Top(); fn != nil && !m.codeView {
 				// m.deferredFuncs()
 				// fmt.Println(err)
 				// fmt.Println("This runnn")
 				fn()
-				m.deferredFuncs.Pop()
+				m.DeferredFuncs.Pop()
 			}
 			// fmt.Println("Always runs")
 			m.activeTab = min(m.activeTab+1, len(m.Tabs)-1)
@@ -123,9 +146,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "left", "shift+tab":
 			// fmt.Println(m.Tabs[m.activeTab])
-			if fn, _ := m.deferredFuncs.Top(); fn != nil && !m.codeView {
+			if fn, _ := m.DeferredFuncs.Top(); fn != nil && !m.codeView {
 				fn()
-				m.deferredFuncs.Pop()
+				m.DeferredFuncs.Pop()
 			}
 			m.activeTab = max(m.activeTab-1, 0)
 			m.setTabContentToFnOutput(val)
@@ -137,15 +160,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 	case tea.WindowSizeMsg:
-		viewport.Sync(m.viewport)
+		s := m.headerView()
+		headerHeight := lipgloss.Height(s)
+		m.viewport.Width = msg.Width
+		m.viewport.Height = msg.Height - headerHeight
 	}
 	//trying to set initialContent
 	m.setTabContentToFnOutput(val)
 	m.viewport.SetContent(m.TabContent[m.activeTab])
-
 	return m, nil
 }
-func (m model) View() string {
+func (m Model) View() string {
 	doc := strings.Builder{}
 
 	var renderedTabs []string
@@ -186,12 +211,12 @@ func (m model) View() string {
 // Sets the model's TabContent property based on whether the codeView
 // is enabled or not. If codeView is true, it sets the TabContent to the formatted body of
 // the selected function. Otherwise, it sets it to the output of the function.
-func (m *model) setTabContentToFnOutput(val reflect.Value) {
+func (m *Model) setTabContentToFnOutput(val reflect.Value) {
 	tab := m.Tabs[m.activeTab]
 	val = val.MethodByName(tab)
 
 	if m.codeView {
-		f, fs := getFuncAST(tab, "learning/learning.go", learning.CodeSrc)
+		f, fs := getFuncAST(tab, "", learning.CodeSrc)
 		body := getFuncBodyStr(f, fs)
 		m.TabContent[m.activeTab] = body
 	} else {
@@ -210,7 +235,7 @@ func tabBorderWithBottom(left, middle, right string) lipgloss.Border {
 // Takes a reflect.Value representing a function, executes it, and captures its
 // standard output. It returns the standard output as a string.
 // If the function being executed returns a closure, it stores that closure in the model.
-func (m *model) funcToStdOut(f reflect.Value) string {
+func (m *Model) funcToStdOut(f reflect.Value) string {
 	oldStdOut := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
@@ -223,12 +248,12 @@ func (m *model) funcToStdOut(f reflect.Value) string {
 		newf := f.Interface().(func() func())
 		closure := newf()
 		// m.deferredFuncs[m.activeTab] = closure
-		m.deferredFuncs.Push(closure)
+		m.DeferredFuncs.Push(closure)
 
 	default:
 		f.Call([]reflect.Value{})
 		// m.deferredFuncs[m.activeTab] = func() {}
-		m.deferredFuncs.Push(func() {})
+		m.DeferredFuncs.Push(func() {})
 
 	}
 
