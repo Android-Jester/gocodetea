@@ -14,7 +14,6 @@ import (
 
 func main() {
 	// declare zero-valued struct
-	fmt.Println(learning.CodeSrc)
 	var learn learning.Go_Struct
 	// var ln = &learning.Go_Struct{} //using pointers
 
