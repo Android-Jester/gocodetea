@@ -73,7 +73,7 @@ type Model struct {
 	TabContent      []string
 	activeTab       int
 	codeView        bool
-	DeferredFuncs   *Stack //func returned from functions that run when you change tabs
+	Stack           *Stack //func returned from functions that run when you change tabs
 	viewport        viewport.Model
 	SourceCode      string
 	MethodContainer interface{} //contains a struct with method receivers that the model will execute
@@ -133,7 +133,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch keypress := msg.String(); keypress {
 		case "ctrl+c", "q":
 			for { //pop every item in the stack and run items until stack is empty
-				f, err := m.DeferredFuncs.Pop()
+				f, err := m.Stack.Pop()
 				// fmt.Println(&f, err)
 				if err != nil {
 					// fmt.Println(&f, err)
@@ -154,12 +154,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			//tabContent didn't return a cleanup function,
 			//codeView shouldnt execute cleanup functions as well
 			// fmt.Println(m.deferredFuncs.s)
-			if fn, _ := m.DeferredFuncs.Top(); fn != nil && !m.codeView {
+			if fn, _ := m.Stack.Top(); fn != nil && !m.codeView {
 				// m.deferredFuncs()
 				// fmt.Println(err)
 				// fmt.Println("This runnn")
 				fn()
-				m.DeferredFuncs.Pop()
+				m.Stack.Pop()
 			}
 			// fmt.Println("Always runs")
 			m.activeTab = min(m.activeTab+1, len(m.Tabs)-1)
@@ -168,9 +168,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "left", "shift+tab":
 			// fmt.Println(m.Tabs[m.activeTab])
-			if fn, _ := m.DeferredFuncs.Top(); fn != nil && !m.codeView {
+			if fn, _ := m.Stack.Top(); fn != nil && !m.codeView {
 				fn()
-				m.DeferredFuncs.Pop()
+				m.Stack.Pop()
 			}
 			m.activeTab = max(m.activeTab-1, 0)
 			m.setTabContentToFnOutput(val)
@@ -233,12 +233,12 @@ func (m *Model) funcToStdOut(f reflect.Value) string {
 		newf := f.Interface().(func() func())
 		closure := newf()
 		// m.deferredFuncs[m.activeTab] = closure
-		m.DeferredFuncs.Push(closure)
+		m.Stack.Push(closure)
 
 	default:
 		f.Call([]reflect.Value{})
 		// m.deferredFuncs[m.activeTab] = func() {}
-		m.DeferredFuncs.Push(func() {})
+		m.Stack.Push(func() {})
 
 	}
 

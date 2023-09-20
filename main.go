@@ -36,7 +36,7 @@ func main() {
 	//populate model with initial fields
 	m := model.Model{Tabs: learning_tabs,
 		TabContent:      make([]string, len(learning_tabs)),
-		DeferredFuncs:   model.NewStack(),
+		Stack:           model.NewStack(),
 		SourceCode:      learning.CodeSrc,
 		MethodContainer: learn}
 	if _, err := tea.NewProgram(m).Run(); err != nil {
